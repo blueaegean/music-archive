@@ -97,8 +97,8 @@ st.sidebar.markdown("### 📊 Στατιστικά Άλμπουμ (Μ.Ο.)")
 st.sidebar.markdown(f"🎵 **Μέσο C.V.:** {mean_cv:.2f} / 5.00")
 st.sidebar.markdown(f"🎧 **Μέσο A.I.:** {mean_ai:.2f} / 5.00")
 st.sidebar.write("---")
-st.sidebar.markdown(f"🔥 **Top Track:** {top_track_name}")
-st.sidebar.markdown(f"✨ **Sonic Highlight:** {sonic_highlight_name}")
+st.sidebar.write(f"🔥 **Top Track:** {top_track_name}")
+st.sidebar.write(f"✨ **Sonic Highlight:** {sonic_highlight_name}")
 
 # Προσθήκη κουμπιού Discogs αν υπάρχει URL
 if 'Discogs_URL' in album_facts and pd.notna(album_facts['Discogs_URL']):
