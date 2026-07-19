@@ -60,19 +60,22 @@ if hard_facts_part:
 # Εμφάνιση των tracks σε καθαρή, αναγνώσιμη μορφή λίστας με κάρτες
 for index, row in album_tracks.iterrows():
     with st.container():
-        # Δημιουργούμε 3 στήλες: μία για τον τίτλο/νούμερο, μία για τα ratings και μία για τις σημειώσεις
-        col1, col2, col3 = st.columns([2, 2, 5])
+        # Χρησιμοποιούμε st.columns με σταθερές αναλογίες για απόλυτη ευθυγράμμιση
+        col1, col2, col3 = st.columns([3, 2, 5])
         
         with col1:
             st.markdown(f"**{row['No']}. {row['Track / Έκδοση']}**")
             st.caption(f"*{row['Genres / Subgenres']}*")
             
         with col2:
-            st.markdown(f"🎵 **Σ.Α.:** {row['Compositional Value']:.2f} | 🎧 **A.I.:** {row['Audiophile Interest']:.2f}")
+            # Μετατροπή του Σ.Α. σε C.V. και ευθυγράμμιση
+            st.markdown(f"🎵 **C.V.:** {row['Compositional Value']:.2f} <br> 🎧 **A.I.:** {row['Audiophile Interest']:.2f}", unsafe_allow_html=True)
             
         with col3:
             st.write(row['Σημειώσεις / Hard Facts'])
             
+        # Προσθήκη extra κενού (padding) πριν τη γραμμή για να αναπνέει το κείμενο
+        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
         st.markdown("---")
 
 st.caption("💡 *Σημείωση: Για να προσθέσετε νέα άλμπουμ, απλώς συμπληρώστε τις γραμμές στο αρχείο Excel και κάντε Refresh (R) στην εφαρμογή.*")
