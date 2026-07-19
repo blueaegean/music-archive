@@ -28,19 +28,22 @@ st.markdown("---")
 st.sidebar.header("🗂️ Πλοήγηση & Αναζήτηση")
 
 # Επιλογή Καλλιτέχνη & Άλμπουμ
-available_albums = df_pressings_all['Άλμπουμ'].unique()
-selected_album = st.sidebar.selectbox("Επιλέξτε Άλμπουμ προς προβολή:", available_albums)
+available_artists = sorted(df_pressings_all['Καλλιτέχνης'].unique())
+selected_artist = st.sidebar.selectbox("Επιλέξτε Καλλιτέχνη προς προβολή:", available_artists)
 
-# Φιλτράρισμα δεδομένων για το επιλεγμένο άλμπουμ
+# Φιλτράρισμα για τα άλμπουμ του συγκεκριμένου καλλιτέχνη
+filtered_df_by_artist = df_pressings_all[df_pressings_all['Καλλιτέχνης'] == selected_artist]
+
+# Dropdown άλμπουμ που δείχνει και το έτος σε παρένθεση
+album_options = filtered_df_by_artist.apply(lambda r: f"{r['Άλμπουμ']} ({int(r['Έτος Κυκλοφορίας']) if not pd.isna(r['Έτος Κυκλοφορίας']) else ''})", axis=1).tolist()
+selected_album_display = st.sidebar.selectbox("Επιλέξτε Άλμπουμ προς προβολή:", album_options)
+
+# Ανάκτηση του καθαρού τίτλου για το φιλτράρισμα
+selected_album = filtered_df_by_artist.iloc[album_options.index(selected_album_display)]['Άλμπουμ']
+
+# Φιλτράρισμα δεδομένων και tracks για το επιλεγμένο άλμπουμ
 album_facts = df_pressings_all[df_pressings_all['Άλμπουμ'] == selected_album].iloc[0]
 album_tracks = df_tracks_all[df_tracks_all['Άλμπουμ'] == selected_album].sort_values(by='No')
-
-# Στατιστικά στη Sidebar
-st.sidebar.markdown("---")
-st.sidebar.subheader("📊 Γρήγορα Στατιστικά Άλμπουμ")
-st.sidebar.metric(label="RYM Score", value=f"{album_facts['RYM Rating']} / 5.0")
-st.sidebar.write(f"**Έτος Κυκλοφορίας:** {str(album_facts['Έτος Κυκλοφορίας']).strip()}")
-st.sidebar.write(f"**Genres:** {album_facts['Genres / Subgenres']}")
 
 # --- ΚΥΡΙΩΣ ΠΑΡΑΘΥΡΟ ΕΦΑΡΜΟΓΗΣ ---
 st.header(f"💿 {album_facts['Καλλιτέχνης']} — *{album_facts['Άλμπουμ']}*")
