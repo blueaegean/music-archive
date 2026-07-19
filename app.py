@@ -34,8 +34,17 @@ selected_artist = st.sidebar.selectbox("Επιλέξτε Καλλιτέχνη π
 # Φιλτράρισμα για τα άλμπουμ του συγκεκριμένου καλλιτέχνη
 filtered_df_by_artist = df_pressings_all[df_pressings_all['Καλλιτέχνης'] == selected_artist]
 
-# Dropdown άλμπουμ που δείχνει και το έτος σε παρένθεση
-album_options = filtered_df_by_artist.apply(lambda r: f"{r['Άλμπουμ']} ({int(r['Έτος Κυκλοφορίας']) if not pd.isna(r['Έτος Κυκλοφορίας']) else ''})", axis=1).tolist()
+# Dropdown άλμπουμ που δείχνει και το έτος σε παρένθεση (με ασφαλή έλεγχο)
+album_options = []
+for idx, r in filtered_df_by_artist.iterrows():
+    year_val = r['Έτος Κυκλοφορίας']
+    # Έλεγχος αν το έτος είναι έγκυρος αριθμός
+    if pd.notna(year_val) and str(year_val).replace('.','',1).isdigit():
+        year_str = f" ({int(float(year_val))})"
+    else:
+        year_str = ""
+    album_options.append(f"{r['Άλμπουμ']}{year_str}")
+
 selected_album_display = st.sidebar.selectbox("Επιλέξτε Άλμπουμ προς προβολή:", album_options)
 
 # Ανάκτηση του καθαρού τίτλου για το φιλτράρισμα
