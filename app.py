@@ -125,9 +125,10 @@ with tab1:
             with col1:
                 st.markdown(f"**{row['No']}. {row['Track_Title']}**")
                 st.caption(f"*{row['Genres_Subgenres']}*")
-                st.markdown(f"⭐ **RYM:** {row['RYM_Rating']}")
                 
             with col2:
+                st.markdown(f"⭐ **RYM:** {row['RYM_Rating']}")
+                
                 try:
                     cv_val = float(row['Compositional_Value'])
                     st.write(f"🎵 **C.V.:** {cv_val:.2f}")
