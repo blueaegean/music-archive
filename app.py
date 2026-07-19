@@ -56,12 +56,20 @@ valid_ai = pd.to_numeric(album_tracks['Audiophile_Interest'], errors='coerce').d
 mean_cv = valid_cv.mean() if not valid_cv.empty else 0.0
 mean_ai = valid_ai.mean() if not valid_ai.empty else 0.0
 
-# Εύρεση του κορυφαίου κομματιού (Top Track) με βάση το Compositional Value
+# Εύρεση όλων των κορυφαίων κομματιών (Top Tracks) σε περίπτωση ισοβαθμίας
 if not album_tracks.empty:
     temp_tracks = album_tracks.copy()
     temp_tracks['CV_num'] = pd.to_numeric(temp_tracks['Compositional_Value'], errors='coerce')
-    top_track_row = temp_tracks.loc[temp_tracks['CV_num'].idxmax()]
-    top_track_name = f"{top_track_row['Track_Title']} ({top_track_row['Compositional_Value']:.2f})"
+    max_cv = temp_tracks['CV_num'].max()
+    
+    # Φιλτράρουμε όλα τα κομμάτια που έχουν την μέγιστη βαθμολογία
+    top_tracks_df = temp_tracks[temp_tracks['CV_num'] == max_cv]
+    
+    # Δημιουργούμε μια λίστα με τα ονόματά τους
+    top_track_list = [f"{r['Track_Title']}" for idx, r in top_tracks_df.iterrows()]
+    
+    # Τα ενώνουμε χωρισμένα με κόμμα και προσθέτουμε τη βαθμολογία στο τέλος
+    top_track_name = f"{', '.join(top_track_list)} ({max_cv:.2f})"
 else:
     top_track_name = "—"
 
