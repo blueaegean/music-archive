@@ -1,93 +1,82 @@
 import streamlit as st
 import pandas as pd
+import os
 
-# Ρύθμιση της σελίδας σε Wide Mode για να απλώνουν όμορφα οι πίνακες
+# Ρύθμιση της σελίδας
 st.set_page_config(page_title="Audiophile Album Archive", layout="wide")
 
-# Φόρτωση των δεδομένων από το Excel
+# --- 1. ΦΟΡΤΩΣΗ ΔΕΔΟΜΕΝΩΝ (Από τα 2 Tabs) ---
 @st.cache_data
 def load_data():
-    df = pd.read_excel("albums_analysis_fixed.xlsx", sheet_name="albums analysis")
-    return df
+    # Διαβάζουμε και τα δύο tabs από το ίδιο αρχείο Excel
+    df_albums = pd.read_excel("albums_analysis_fixed.xlsx", sheet_name="albums")
+    df_tracks = pd.read_excel("albums_analysis_fixed.xlsx", sheet_name="tracks")
+    return df_albums, df_tracks
 
 try:
-    df_raw = load_data()
+    df_pressings_all, df_tracks_all = load_data()
 except Exception as e:
-    st.error("Παρακαλώ βεβαιωθείτε ότι το αρχείο 'albums_analysis_fixed.xlsx' βρίσκεται στον ίδιο φάκελο με το 'app.py'.")
+    st.error("Παρακαλώ βεβαιωθείτε ότι το αρχείο 'albums_analysis_fixed.xlsx' περιέχει τα tabs 'albums' και 'tracks'.")
     st.stop()
 
-# Διαχωρισμός Tracks και Pressing Facts
-df_tracks_all = df_raw[df_raw['No'] != '#'].copy()
-df_pressings_all = df_raw[df_raw['No'] == '#'].copy()
+# --- 2. ΠΛΑΪΝΗ ΜΠΑΡΑ (SIDEBAR) ---
+st.sidebar.title("📁 Πλοήγηση & Αναζήτηση")
 
-# Τίτλος Εφαρμογής
-st.title("🎵 Audiophile Album Archive & Music Library")
-st.markdown("---")
-
-# Sidebar - Πλοήγηση & Φίλτρα
-st.sidebar.header("🗂️ Πλοήγηση & Αναζήτηση")
-
-# Επιλογή Καλλιτέχνη & Άλμπουμ
+# Επιλογή Καλλιτέχνη
 available_artists = sorted(df_pressings_all['Καλλιτέχνης'].unique())
 selected_artist = st.sidebar.selectbox("Επιλέξτε Καλλιτέχνη προς προβολή:", available_artists)
 
-# Φιλτράρισμα για τα άλμπουμ του συγκεκριμένου καλλιτέχνη
-filtered_df_by_artist = df_pressings_all[df_pressings_all['Καλλιτέχνης'] == selected_artist]
+# Φιλτράρισμα των άλμπουμ του συγκεκριμένου καλλιτέχνη
+filtered_albums = df_pressings_all[df_pressings_all['Καλλιτέχνης'] == selected_artist]
 
-# Dropdown άλμπουμ που δείχνει και το έτος σε παρένθεση (με ασφαλή έλεγχο)
+# Dropdown άλμπουμ που δείχνει και το έτος σε παρένθεση
 album_options = []
-for idx, r in filtered_df_by_artist.iterrows():
+for idx, r in filtered_albums.iterrows():
     year_val = r['Έτος Κυκλοφορίας']
-    # Έλεγχος αν το έτος είναι έγκυρος αριθμός
-    if pd.notna(year_val) and str(year_val).replace('.','',1).isdigit():
-        year_str = f" ({int(float(year_val))})"
+    if pd.notna(year_val):
+        year_str = str(year_val).split()[-1]  # Παίρνει το έτος (π.χ. από "29 May 2026" ή "2009")
+        year_str = f" ({year_str.split('.')[0]})"
     else:
         year_str = ""
     album_options.append(f"{r['Άλμπουμ']}{year_str}")
 
 selected_album_display = st.sidebar.selectbox("Επιλέξτε Άλμπουμ προς προβολή:", album_options)
 
-# Ανάκτηση του καθαρού τίτλου για το φιλτράρισμα
-selected_album = filtered_df_by_artist.iloc[album_options.index(selected_album_display)]['Άλμπουμ']
+# Ανάκτηση του σωστού άλμπουμ και του Album_ID του
+selected_album_row = filtered_albums.iloc[album_options.index(selected_album_display)]
+selected_album_id = selected_album_row['Album_ID']
 
-# Φιλτράρισμα δεδομένων και tracks για το επιλεγμένο άλμπουμ
-album_facts = df_pressings_all[df_pressings_all['Άλμπουμ'] == selected_album].iloc[0]
-album_tracks = df_tracks_all[df_tracks_all['Άλμπουμ'] == selected_album].sort_values(by='No')
+# Φιλτράρισμα δεδομένων και tracks με βάση το Album_ID
+album_facts = selected_album_row
+album_tracks = df_tracks_all[df_tracks_all['Album_ID'] == selected_album_id].sort_values(by='No')
 
-# --- ΚΥΡΙΩΣ ΠΑΡΑΘΥΡΟ ΕΦΑΡΜΟΓΗΣ ---
-st.header(f"💿 {album_facts['Καλλιτέχνης']} — *{album_facts['Άλμπουμ']}*")
 
-notes_text = str(album_facts['Σημειώσεις / Hard Facts'])
-if "|" in notes_text:
-    history_part, hard_facts_part = notes_text.split("|", 1)
-else:
-    history_part = notes_text
-    hard_facts_part = ""
+# --- 3. ΚΥΡΙΩΣ ΠΑΡΑΘΥΡΟ ΕΦΑΡΜΟΓΗΣ ---
+st.title("🎵 Audiophile Album Archive & Music Library")
+st.subheader(f"🎚️ {album_facts['Καλλιτέχνης']} — *{album_facts['Άλμπουμ']}*")
 
-st.info(f"**Ιστορικό Πλαίσιο & Παραγωγή:**\n\n{history_part.replace('Α) Ιστορικό Πλαίσιο & Παραγωγή:', '').strip()}")
+# Εμφάνιση Ιστορικού Πλαισίου & Hard Facts του Άλμπουμ
+st.info(f"{album_facts['Σημειώσεις / Hard Facts']}")
 
-if hard_facts_part:
-    st.warning(f"**📋 Hard Facts Έκδοσης Βινυλίου:**\n\n{hard_facts_part.replace('Hard Facts:', '').strip()}")
+st.write("---")
+st.markdown("### 💿 Ανάλυση Κομματιών (Tracks Analysis)")
 
-# Εμφάνιση των tracks σε καθαρή, αναγνώσιμη μορφή λίστας με κάρτες
+# Εμφάνιση των τραγουδιών σε καθαρή audiophile γεωμετρία
 for index, row in album_tracks.iterrows():
     with st.container():
-        # Χρησιμοποιούμε st.columns με σταθερές αναλογίες για απόλυτη ευθυγράμμιση
-        col1, col2, col3 = st.columns([3, 2, 5])
+        # Δημιουργούμε 3 στήλες: 1 για τον τίτλο, 1 για τα Ratings, 1 για τις Σημειώσεις
+        col1, col2, col3 = st.columns([2, 1, 3])
         
         with col1:
             st.markdown(f"**{row['No']}. {row['Track / Έκδοση']}**")
             st.caption(f"*{row['Genres / Subgenres']}*")
             
         with col2:
-            # Μετατροπή του Σ.Α. σε C.V. και ευθυγράμμιση
-            st.markdown(f"🎵 **C.V.:** {row['Compositional Value']:.2f} <br> 🎧 **A.I.:** {row['Audiophile Interest']:.2f}", unsafe_allow_html=True)
+            st.markdown(f"⭐ **RYM:** {row['RYM Rating']}")
+            st.markdown(f"🎵 **C.V.:** {row['Compositional Value']:.2f}")
+            st.markdown(f"🎧 **A.I.:** {row['Audiophile Interest']:.2f}")
             
         with col3:
             st.write(row['Σημειώσεις / Hard Facts'])
             
-        # Προσθήκη extra κενού (padding) πριν τη γραμμή για να αναπνέει το κείμενο
-        st.markdown("<div style='margin-bottom: 15px;'></div>", unsafe_allow_html=True)
-        st.markdown("---")
-
-st.caption("💡 *Σημείωση: Για να προσθέσετε νέα άλμπουμ, απλώς συμπληρώστε τις γραμμές στο αρχείο Excel και κάντε Refresh (R) στην εφαρμογή.*")
+        st.write("---")
