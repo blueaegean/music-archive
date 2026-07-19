@@ -80,8 +80,14 @@ else:
 
 # --- ΕΜΦΑΝΙΣΗ ΣΤΟΙΧΕΙΩΝ ΣΤΗ SIDEBAR ---
 st.sidebar.write("---")
+
+# Εμφάνιση εξωφύλλου αν υπάρχει URL
+if 'Image_URL' in album_facts and pd.notna(album_facts['Image_URL']):
+    st.sidebar.image(album_facts['Image_URL'], use_container_width=True)
+    st.sidebar.write("---")
+
 st.sidebar.markdown(f"🌟 **Συνολικό RYM Rating:** {album_facts['RYM_Rating']}")
-st.sidebar.markdown(f"🏷/ **Genres:** {album_facts['Genres_Subgenres']}")
+st.sidebar.markdown(f"🏷️ **Genres:** {album_facts['Genres_Subgenres']}")
 
 if 'Label_Pressing' in album_facts and pd.notna(album_facts['Label_Pressing']):
     st.sidebar.markdown(f"📀 **Έκδοση:** {album_facts['Label_Pressing']}")
@@ -105,7 +111,7 @@ st.title("🎵 Audiophile Album Archive & Music Library")
 st.subheader(f"🎚️ {album_facts['Artist']} — *{album_facts['Album']}*")
 st.write("---")
 
-# Δημιουργία Tabs για καθαρό διαχωρισμό της πληροφορίας
+# Δημιουργία Tabs
 tab1, tab2 = st.tabs(["💿 Ανάλυση Κομματιών (Tracks)", "📖 Πληροφορίες Έκδοσης & Ιστορικό"])
 
 with tab1:
