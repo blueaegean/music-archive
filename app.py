@@ -50,9 +50,10 @@ selected_album_id = selected_album_row['Album_ID']
 album_facts = selected_album_row
 album_tracks = df_tracks_all[df_tracks_all['Album_ID'] == selected_album_id].sort_values(by='No')
 
-# Προσθήκη συνολικής βαθμολογίας άλμπουμ στα αριστερά
+# Προσθήκη συνολικής βαθμολογίας και ειδών άλμπουμ στα αριστερά
 st.sidebar.write("---")
 st.sidebar.markdown(f"🌟 **Συνολικό RYM Rating:** {album_facts['RYM Rating']}")
+st.sidebar.markdown(f"🏷️ **Genres:** {album_facts['Genres / Subgenres']}")
 
 # --- 3. ΚΥΡΙΩΣ ΠΑΡΑΘΥΡΟ ΕΦΑΡΜΟΓΗΣ ---
 st.title("🎵 Audiophile Album Archive & Music Library")
