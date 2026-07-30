@@ -1,155 +1,168 @@
 import streamlit as st
 import pandas as pd
-import os
 
-# Ρύθμιση της σελίδας
-st.set_page_config(page_title="Audiophile Album Archive", layout="wide")
+# ---------------------------------------------------------
+# Page Configuration
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="Music Archive Dashboard",
+    page_icon="🎸",
+    layout="wide"
+)
 
-# --- 1. ΦΟΡΤΩΣΗ ΔΕΔΟΜΕΝΩΝ ---
+# ---------------------------------------------------------
+# Data Loading & Caching
+# ---------------------------------------------------------
+EXCEL_FILE = 'albums_analysis_fixed.xlsx'
+
 @st.cache_data
 def load_data():
-    df_albums = pd.read_excel("albums_analysis_fixed.xlsx", sheet_name="albums")
-    df_tracks = pd.read_excel("albums_analysis_fixed.xlsx", sheet_name="tracks")
-    return df_albums, df_tracks
+    try:
+        # Φόρτωση των δύο tabs από το Excel
+        albums_df = pd.read_excel(EXCEL_FILE, sheet_name='albums')
+        tracks_df = pd.read_excel(EXCEL_FILE, sheet_name='tracks')
+        
+        # Καθαρισμός κενών στα Album_ID για σωστό merge/filter
+        albums_df['Album_ID'] = albums_df['Album_ID'].astype(str).str.strip()
+        tracks_df['Album_ID'] = tracks_df['Album_ID'].astype(str).str.strip()
+        
+        return albums_df, tracks_df
+    except Exception as e:
+        st.error(f"Σφάλμα κατά τη φόρτωση του αρχείου Excel ({EXCEL_FILE}): {e}")
+        return None, None
 
-try:
-    df_pressings_all, df_tracks_all = load_data()
-except Exception as e:
-    st.error("Παρακαλώ βεβαιωθείτε ότι το αρχείο 'albums_analysis_fixed.xlsx' περιέχει τα tabs 'albums' και 'tracks' με τις σωστές αγγλικές κεφαλίδες.")
-    st.stop()
+albums_df, tracks_df = load_data()
 
-# --- 2. ΠΛΑΪΝΗ ΜΠΑΡΑ (SIDEBAR) ---
-st.sidebar.title("📁 Πλοήγηση & Αναζήτηση")
+if albums_df is not None and tracks_df is not None:
 
-# Επιλογή Καλλιτέχνη
-available_artists = sorted(df_pressings_all['Artist'].unique())
-selected_artist = st.sidebar.selectbox("Επιλέξτε Καλλιτέχνη προς προβολή:", available_artists)
-
-# Φιλτράρισμα των άλμπουμ του συγκεκριμένου καλλιτέχνη
-filtered_albums = df_pressings_all[df_pressings_all['Artist'] == selected_artist]
-
-# Dropdown άλμπουμ
-album_options = []
-for idx, r in filtered_albums.iterrows():
-    year_val = r['Release_Year']
-    if pd.notna(year_val):
-        year_str = str(year_val).split()[-1]
-        year_str = f" ({year_str.split('.')[0]})"
-    else:
-        year_str = ""
-    album_options.append(f"{r['Album']}{year_str}")
-
-selected_album_display = st.sidebar.selectbox("Επιλέξτε Άλμπουμ προς προβολή:", album_options)
-
-# Ανάκτηση του σωστού άλμπουμ και του Album_ID του
-selected_album_row = filtered_albums.iloc[album_options.index(selected_album_display)]
-selected_album_id = selected_album_row['Album_ID']
-
-# Φιλτράρισμα δεδομένων και tracks με βάση το Album_ID
-album_facts = selected_album_row
-album_tracks = df_tracks_all[df_tracks_all['Album_ID'] == selected_album_id].sort_values(by='No')
-
-# --- ΑΥΤΟΜΑΤΟΙ ΥΠΟΛΟΓΙΣΜΟΙ ΣΤΑΤΙΣΤΙΚΩΝ ---
-valid_cv = pd.to_numeric(album_tracks['Compositional_Value'], errors='coerce').dropna()
-valid_ai = pd.to_numeric(album_tracks['Audiophile_Interest'], errors='coerce').dropna()
-
-mean_cv = valid_cv.mean() if not valid_cv.empty else 0.0
-mean_ai = valid_ai.mean() if not valid_ai.empty else 0.0
-
-# Εύρεση Top Track(s) - Compositional Value
-if not album_tracks.empty:
-    temp_tracks = album_tracks.copy()
-    temp_tracks['CV_num'] = pd.to_numeric(temp_tracks['Compositional_Value'], errors='coerce')
-    max_cv = temp_tracks['CV_num'].max()
-    top_tracks_df = temp_tracks[temp_tracks['CV_num'] == max_cv]
-    top_track_list = [f"{r['Track_Title']}" for idx, r in top_tracks_df.iterrows()]
-    top_track_name = f"{', '.join(top_track_list)} ({max_cv:.2f})"
-else:
-    top_track_name = "—"
-
-# Εύρεση Sonic Highlight(s) - Audiophile Interest
-if not album_tracks.empty:
-    temp_tracks = album_tracks.copy()
-    temp_tracks['AI_num'] = pd.to_numeric(temp_tracks['Audiophile_Interest'], errors='coerce')
-    max_ai = temp_tracks['AI_num'].max()
-    sonic_df = temp_tracks[temp_tracks['AI_num'] == max_ai]
-    sonic_list = [f"{r['Track_Title']}" for idx, r in sonic_df.iterrows()]
-    sonic_highlight_name = f"{', '.join(sonic_list)} ({max_ai:.2f})"
-else:
-    sonic_highlight_name = "—"
-
-# --- ΕΜΦΑΝΙΣΗ ΣΤΟΙΧΕΙΩΝ ΣΤΗ SIDEBAR ---
-st.sidebar.write("---")
-
-# Εμφάνιση εξωφύλλου αν υπάρχει URL
-if 'Image_URL' in album_facts and pd.notna(album_facts['Image_URL']):
-    st.sidebar.image(album_facts['Image_URL'], use_container_width=True)
-    st.sidebar.write("---")
-
-st.sidebar.markdown(f"🌟 **Συνολικό RYM Rating:** {album_facts['RYM_Rating']}")
-st.sidebar.markdown(f"🏷️ **Genres:** {album_facts['Genres_Subgenres']}")
-
-if 'Label_Pressing' in album_facts and pd.notna(album_facts['Label_Pressing']):
-    st.sidebar.markdown(f"📀 **Έκδοση:** {album_facts['Label_Pressing']}")
-
-st.sidebar.write("---")
-st.sidebar.markdown("### 📊 Στατιστικά Άλμπουμ (Μ.Ο.)")
-st.sidebar.markdown(f"🎵 **Μέσο C.V.:** {mean_cv:.2f} / 5.00")
-st.sidebar.markdown(f"🎧 **Μέσο A.I.:** {mean_ai:.2f} / 5.00")
-st.sidebar.write("---")
-st.sidebar.markdown(f"<div style='white-space: nowrap;'>🔥 <b>Top Track:</b> {top_track_name}</div>", unsafe_allow_html=True)
-st.sidebar.markdown(f"<div style='white-space: nowrap;'>✨ <b>Sonic Highlight:</b> {sonic_highlight_name}</div>", unsafe_allow_html=True)
-
-# Προσθήκη κουμπιού Discogs αν υπάρχει URL
-if 'Discogs_URL' in album_facts and pd.notna(album_facts['Discogs_URL']):
-    st.sidebar.write("---")
-    st.sidebar.link_button("🛒 Δείτε το στο Discogs", album_facts['Discogs_URL'], use_container_width=True)
-
-
-# --- 3. ΚΥΡΙΩΣ ΠΑΡΑΘΥΡΟ ΕΦΑΡΜΟΓΗΣ ---
-st.title("🎵 Audiophile Album Archive & Music Library")
-st.subheader(f"🎚️ {album_facts['Artist']} — *{album_facts['Album']}*")
-st.write("---")
-
-# Δημιουργία Tabs
-tab1, tab2 = st.tabs(["💿 Ανάλυση Κομματιών (Tracks)", "📖 Πληροφορίες Έκδοσης & Ιστορικό"])
-
-with tab1:
-    st.markdown("### Tracks Analysis")
-    st.write("")
+    # ---------------------------------------------------------
+    # Sidebar Filters
+    # ---------------------------------------------------------
+    st.sidebar.title("🔍 Φίλτρα & Αναζήτηση")
     
-    for index, row in album_tracks.iterrows():
-        with st.container():
-            col1, col2, col3 = st.columns([2, 1.5, 3])
+    # ⚡ ΕΙΔΙΚΟ ΦΙΛΤΡΟ: Victoria 80s Club Anthems
+    show_victoria_only = st.sidebar.checkbox("⚡ Victoria 80s Anthems Only ([V])")
+    
+    # Φίλτρο Αναζήτησης Καλλιτέχνη / Άλμπουμ
+    search_query = st.sidebar.text_input("Αναζήτηση Καλλιτέχνη ή Άλμπουμ:", "")
+
+    # ---------------------------------------------------------
+    # MAIN DISPLAY: VICTORIA ONLY MODE
+    # ---------------------------------------------------------
+    if show_victoria_only:
+        st.title("⚡ Victoria Club ClassiX Selection ([V])")
+        st.markdown("*Τα ιστορικά tracks που έσειαν το υπόγειο της Victoria στον Κορυδαλλό!*")
+        st.write("---")
+        
+        # Φιλτράρισμα τραγουδιών που έχουν 'V' στη στήλη Victoria_Track
+        if 'Victoria_Track' in tracks_df.columns:
+            victoria_tracks = tracks_df[
+                tracks_df['Victoria_Track'].notna() & 
+                (tracks_df['Victoria_Track'].astype(str).str.strip().str.upper() == 'V')
+            ].copy()
+            
+            if not victoria_tracks.empty:
+                # Merge με τα στοιχεία του άλμπουμ για να φαίνεται ο καλλιτέχνης
+                merged_v = pd.merge(victoria_tracks, albums_df[['Album_ID', 'Artist', 'Album']], on='Album_ID', how='left')
+                
+                # Προβολή αποτελεσμάτων
+                display_cols = ['Artist', 'Album', 'No', 'Track_Title', 'Genres_Subgenres', 'Compositional_Value', 'Audiophile_Interest']
+                available_cols = [c for c in display_cols if c in merged_v.columns]
+                
+                st.dataframe(
+                    merged_v[available_cols].rename(columns={
+                        'Track_Title': 'Τίτλος Τραγουδιού',
+                        'Genres_Subgenres': 'Είδος',
+                        'Compositional_Value': 'C.V.',
+                        'Audiophile_Interest': 'A.I.'
+                    }),
+                    use_container_width=True
+                )
+            else:
+                st.info("Δεν βρέθηκαν κομμάτια με τη σήμανση 'V' στη στήλη Victoria_Track.")
+        else:
+            st.warning("Η στήλη 'Victoria_Track' δεν βρέθηκε στο tab 'tracks' του Excel.")
+
+    # ---------------------------------------------------------
+    # MAIN DISPLAY: STANDARD CATALOG VIEW
+    # ---------------------------------------------------------
+    else:
+        st.title("🎼 Music Archive & Vinyl Collection")
+        
+        # Εφαρμογή φίλτρου αναζήτησης στα άλμπουμ
+        filtered_albums = albums_df.copy()
+        if search_query:
+            filtered_albums = filtered_albums[
+                filtered_albums['Artist'].str.contains(search_query, case=False, na=False) |
+                filtered_albums['Album'].str.contains(search_query, case=False, na=False)
+            ]
+
+        # Επιλογή Άλμπουμ από λίστα
+        album_list = filtered_albums['Artist'] + " - " + filtered_albums['Album'] + " (" + filtered_albums['Release_Year'].astype(str) + ")"
+        
+        if not album_list.empty:
+            selected_album_str = st.selectbox("Επιλέξτε Άλμπουμ για προβολή:", album_list)
+            
+            # Εντοπισμός του επιλεγμένου Album_ID
+            selected_idx = album_list[album_list == selected_album_str].index[0]
+            selected_album = filtered_albums.loc[selected_idx]
+            album_id = str(selected_album['Album_ID']).strip()
+            
+            st.write("---")
+            
+            # ---------------------------------------------------------
+            # Album Details & Hard Facts
+            # ---------------------------------------------------------
+            col1, col2 = st.columns([1, 2])
             
             with col1:
-                st.markdown(f"**{row['No']}. {row['Track_Title']}**")
-                st.caption(f"*{row['Genres_Subgenres']}*")
-                
-            with col2:
-                st.markdown(f"⭐ **RYM:** {row['RYM_Rating']}")
-                
-                try:
-                    cv_val = float(row['Compositional_Value'])
-                    st.write(f"🎵 **C.V.:** {cv_val:.2f}")
-                    st.progress(min(cv_val / 5.0, 1.0))
-                except:
-                    st.write(f"🎵 **C.V.:** {row['Compositional_Value']}")
-                
-                st.write("") 
-                
-                try:
-                    ai_val = float(row['Audiophile_Interest'])
-                    st.write(f"🎧 **A.I.:** {ai_val:.2f}")
-                    st.progress(min(ai_val / 5.0, 1.0))
-                except:
-                    st.write(f"🎧 **A.I.:** {row['Audiophile_Interest']}")
-                
-            with col3:
-                st.write(row['Notes_Hard_Facts'])
-                
-            st.write("---")
+                st.header(f"{selected_album['Artist']}")
+                st.subheader(f"{selected_album['Album']} ({selected_album['Release_Year']})")
+                st.markdown(f"**Είδος:** {selected_album['Genres_Subgenres']}")
+                st.markdown(f"**RYM Rating:** ⭐ {selected_album['RYM_Rating']}")
+                st.markdown(f"**Έκδοση / Pressing:** {selected_album['Label_Pressing']}")
 
-with tab2:
-    st.markdown("### 📝 Ιστορικό Πλαίσιο & Hard Facts")
-    st.info(f"{album_facts['Notes_Hard_Facts']}")
+            with col2:
+                st.subheader("📋 Hard Facts & Ηχητική Αξιολόγηση")
+                st.info(selected_album['Notes_Hard_Facts'])
+
+            st.write("---")
+            st.subheader("🎵 Tracklist & Αξιολόγηση Κομματιών")
+            
+            # ---------------------------------------------------------
+            # Tracklist Display
+            # ---------------------------------------------------------
+            current_tracks = tracks_df[tracks_df['Album_ID'] == album_id].sort_values(by='No')
+            
+            if not current_tracks.empty:
+                for idx, track in current_tracks.iterrows():
+                    title = track['Track_Title']
+                    
+                    # Έλεγχος για τη σήμανση Victoria [V]
+                    is_victoria = (
+                        'Victoria_Track' in track and 
+                        pd.notna(track['Victoria_Track']) and 
+                        str(track['Victoria_Track']).strip().upper() == 'V'
+                    )
+                    
+                    # Διαμόρφωση τίτλου αν είναι Victoria Anthem
+                    if is_victoria:
+                        display_title = f"{title} ⚡ **[V - Victoria Anthem]**"
+                    else:
+                        display_title = title
+                    
+                    # Εμφάνιση στοιχείων τραγουδιού
+                    with st.expander(f"**{track['No']}. {display_title}**"):
+                        c1, c2, c3 = st.columns([2, 1, 1])
+                        with c1:
+                            st.write(f"**Είδος:** {track['Genres_Subgenres']}")
+                            if 'Notes_Hard_Facts' in track and pd.notna(track['Notes_Hard_Facts']):
+                                st.write(f"*{track['Notes_Hard_Facts']}*")
+                        with c2:
+                            st.metric("Compositional Value", f"{track['Compositional_Value']} / 5")
+                        with c3:
+                            st.metric("Audiophile Interest", f"{track['Audiophile_Interest']} / 5")
+            else:
+                st.warning("Δεν βρέθηκαν κομμάτια για το συγκεκριμένο άλμπουμ στο tab 'tracks'.")
+        else:
+            st.warning("Δεν βρέθηκαν άλμπουμ που να ταιριάζουν με την αναζήτησή σας.")
