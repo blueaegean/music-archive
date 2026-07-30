@@ -38,7 +38,6 @@ if albums_df is not None and tracks_df is not None:
     # ---------------------------------------------------------
     st.sidebar.title("🔍 Φίλτρα & Αναζήτηση")
     
-    # Διακριτικό Φίλτρο Victoria
     show_victoria_only = st.sidebar.checkbox("⚡ Victoria 80s Anthems Only ([V])")
     search_query = st.sidebar.text_input("Αναζήτηση Καλλιτέχνη ή Άλμπουμ:", "")
 
@@ -57,13 +56,14 @@ if albums_df is not None and tracks_df is not None:
             
             if not victoria_tracks.empty:
                 merged_v = pd.merge(victoria_tracks, albums_df[['Album_ID', 'Artist', 'Album']], on='Album_ID', how='left')
-                display_cols = ['Artist', 'Album', 'No', 'Track_Title', 'Genres_Subgenres', 'Compositional_Value', 'Audiophile_Interest']
+                display_cols = ['Artist', 'Album', 'No', 'Track_Title', 'Genres_Subgenres', 'RYM_Rating', 'Compositional_Value', 'Audiophile_Interest']
                 available_cols = [c for c in display_cols if c in merged_v.columns]
                 
                 st.dataframe(
                     merged_v[available_cols].rename(columns={
                         'Track_Title': 'Τίτλος Τραγουδιού',
                         'Genres_Subgenres': 'Είδος',
+                        'RYM_Rating': 'RYM Track Rating',
                         'Compositional_Value': 'C.V.',
                         'Audiophile_Interest': 'A.I.'
                     }),
@@ -75,7 +75,7 @@ if albums_df is not None and tracks_df is not None:
             st.warning("Η στήλη 'Victoria_Track' δεν βρέθηκε στο tab 'tracks'.")
 
     # ---------------------------------------------------------
-    # STANDARD CATALOG VIEW (ΑΡΧΙΚΟ CLEAN DESIGN)
+    # STANDARD CATALOG VIEW (ORIGINAL LAYOUT WITH RYM TRACK RATINGS)
     # ---------------------------------------------------------
     else:
         filtered_albums = albums_df.copy()
@@ -113,7 +113,6 @@ if albums_df is not None and tracks_df is not None:
             st.write("---")
             st.subheader("🎵 Tracklist & Αξιολόγηση Κομματιών")
             
-            # Καθαρή, αέρινη προβολή Tracklist (χωρίς expanders/κουτιά)
             current_tracks = tracks_df[tracks_df['Album_ID'] == album_id].sort_values(by='No')
             
             if not current_tracks.empty:
@@ -129,16 +128,25 @@ if albums_df is not None and tracks_df is not None:
                     
                     v_badge = " ⚡ **[V]**" if is_victoria else ""
                     
-                    c1, c2, c3 = st.columns([3, 1, 1])
+                    # Διάταξη σε 4 στήλες: Τίτλος | RYM Track Rating | C.V. | A.I.
+                    c1, c2, c3, c4 = st.columns([3, 1, 1, 1])
+                    
                     with c1:
                         st.markdown(f"**{track['No']}. {title}**{v_badge}")
                         st.caption(f"Είδος: {track['Genres_Subgenres']}")
                         if 'Notes_Hard_Facts' in track and pd.notna(track['Notes_Hard_Facts']):
                             st.write(f"*{track['Notes_Hard_Facts']}*")
+                            
                     with c2:
-                        st.write(f"**C.V.:** {track['Compositional_Value']} / 5")
+                        rym_tr = track['RYM_Rating'] if 'RYM_Rating' in track and pd.notna(track['RYM_Rating']) else "-"
+                        st.write(f"**RYM:** ⭐ {rym_tr}")
+                        
                     with c3:
+                        st.write(f"**C.V.:** {track['Compositional_Value']} / 5")
+                        
+                    with c4:
                         st.write(f"**A.I.:** {track['Audiophile_Interest']} / 5")
+                        
                     st.write("---")
             else:
                 st.warning("Δεν βρέθηκαν κομμάτια για το συγκεκριμένο άλμπουμ.")
